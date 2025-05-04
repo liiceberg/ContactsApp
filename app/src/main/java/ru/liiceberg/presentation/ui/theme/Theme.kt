@@ -1,4 +1,4 @@
-package ru.liiceberg.ui.theme
+package ru.liiceberg.presentation.ui.theme
 
 import android.app.Activity
 import android.os.Build
