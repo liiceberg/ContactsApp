@@ -54,10 +54,13 @@ dependencies {
     implementation(libs.androidx.ui.graphics.android)
     implementation(libs.androidx.runtime.android)
     implementation(libs.androidx.foundation)
+    implementation(libs.accompanist.permissions)
 
     implementation(libs.androidx.hilt)
     implementation(libs.hilt.android)
     kapt(libs.hilt.compiler)
+
+    implementation(libs.coil.compose)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

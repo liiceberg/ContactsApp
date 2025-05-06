@@ -7,5 +7,5 @@ import ru.liiceberg.presentation.model.LoadState
 @Immutable
 data class ContactsState(
     val loadState: LoadState = LoadState.Initial,
-    val contacts: List<ContactUiModel> = listOf(),
+    val contacts: Map<Char, List<ContactUiModel>> = emptyMap<Char, List<ContactUiModel>>(),
 ) : UiState

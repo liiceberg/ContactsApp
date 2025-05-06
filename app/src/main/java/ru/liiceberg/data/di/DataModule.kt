@@ -13,4 +13,5 @@ interface DataModule {
 
     @Binds
     fun bindContactsRepositoryToContactsRepositoryImpl(impl: ContactsRepositoryImpl) : ContactsRepository
+
 }
