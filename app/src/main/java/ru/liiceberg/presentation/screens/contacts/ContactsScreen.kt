@@ -58,6 +58,12 @@ fun ContactsScreen(
     var callPermissionState by remember { mutableStateOf<PermissionResult?>(null) }
     var launchCallRequest: (() -> Unit)? by remember { mutableStateOf(null) }
 
+    var showContactsRationaleDialog by remember { mutableStateOf(false) }
+    var showContactsPermissionDeniedScreen by remember { mutableStateOf(false) }
+
+    var showCallRationaleDialog by remember { mutableStateOf(false) }
+    var showCallPermissionDeniedDialog by remember { mutableStateOf(false) }
+
     PermissionHandler(
         permission = Manifest.permission.READ_CONTACTS,
         onPermissionLauncherReady = { launcher -> launchContactsRequest = launcher },
@@ -73,62 +79,99 @@ fun ContactsScreen(
     )
 
     LaunchedEffect(contactsPermissionState) {
-        if (contactsPermissionState == PermissionResult.Granted) {
-            viewModel.obtainEvent(ContactsEvent.LoadContacts)
+        contactsPermissionState?.let {
+            when (it) {
+                PermissionResult.Granted -> {
+                    viewModel.obtainEvent(ContactsEvent.LoadContacts)
+                    showContactsPermissionDeniedScreen = false
+                    showContactsRationaleDialog = false
+                }
+                PermissionResult.PermanentlyDenied -> {
+                    showContactsPermissionDeniedScreen = true
+                    showContactsRationaleDialog = false
+                }
+                PermissionResult.ShowRationale -> {
+                    showContactsRationaleDialog = true
+                    showContactsPermissionDeniedScreen = false
+                }
+                PermissionResult.RequestNeeded -> {
+                    launchContactsRequest?.invoke()
+                }
+            }
         }
     }
 
     Box(Modifier.padding(padding)) {
-        when (contactsPermissionState) {
-            PermissionResult.Granted -> {
-                ContactsScreen(
-                    state = state,
-                    onContactClick = { phoneNumber ->
-                        when (callPermissionState) {
-                            PermissionResult.Granted -> {
-                                context.callContact(phoneNumber)
-                            }
+        when {
+            showContactsPermissionDeniedScreen -> {
+                ScreenWithoutPermission(onOpenSettings = { context.openAppSettings() })
+            }
 
-                            PermissionResult.RequestNeeded -> {
-                                launchCallRequest?.invoke()
-                            }
-
-                            PermissionResult.ShowRationale -> {
-
-                            }
-
-                            PermissionResult.PermanentlyDenied -> {
-
-                            }
-
-                            else -> {}
-                        }
+            showContactsRationaleDialog -> {
+                BaseAlertDialog(
+                    title = stringResource(R.string.permission_needed),
+                    text = stringResource(R.string.app_needs_contacts_permission_text),
+                    onCancel = {},
+                    onConfirm = {
+                        showContactsRationaleDialog = false
+                        launchContactsRequest?.invoke()
                     }
                 )
             }
 
-            PermissionResult.ShowRationale -> {
-                BaseAlertDialog(
-                    stringResource(R.string.permission_needed),
-                    stringResource(R.string.app_needs_contacts_permission_text)) {
-                    launchContactsRequest?.invoke()
+            else -> {
+                ContactsScreen(
+                    state = state,
+                    onContactClick = { phoneNumber ->
+                        callPermissionState?.let {
+                            when (it) {
+                                PermissionResult.Granted -> {
+                                    showCallPermissionDeniedDialog = false
+                                    showCallRationaleDialog = false
+                                    context.callContact(phoneNumber)
+                                }
+                                PermissionResult.PermanentlyDenied -> {
+                                    showCallPermissionDeniedDialog = true
+                                    showCallRationaleDialog = false
+                                }
+                                PermissionResult.ShowRationale -> {
+                                    showCallRationaleDialog = true
+                                    showCallPermissionDeniedDialog = false
+                                }
+                                PermissionResult.RequestNeeded -> {
+                                    launchCallRequest?.invoke()
+                                }
+                            }
+                        }
+                    }
+                )
+            }
+        }
+
+        if (showCallRationaleDialog) {
+            BaseAlertDialog(
+                title = stringResource(R.string.permission_needed),
+                text = stringResource(R.string.app_needs_call_permission_text),
+                onCancel = { showCallRationaleDialog = false },
+                onConfirm = {
+                    showCallRationaleDialog = false
+                    launchCallRequest?.invoke()
                 }
-            }
+            )
+        }
 
-            PermissionResult.PermanentlyDenied -> {
-                ScreenWithoutPermission { context.openAppSettings() }
-            }
-
-            PermissionResult.RequestNeeded -> {
-                LaunchedEffect(Unit) {
-                    launchContactsRequest?.invoke()
+        if (showCallPermissionDeniedDialog) {
+            BaseAlertDialog(
+                title = stringResource(R.string.permission_needed),
+                text = stringResource(R.string.no_call_permission_text),
+                onCancel = { showCallPermissionDeniedDialog = false },
+                onConfirm = {
+                    showCallPermissionDeniedDialog = false
+                    context.openAppSettings()
                 }
-            }
-
-            else -> {}
+            )
         }
     }
-
 }
 
 @Composable
@@ -172,6 +215,7 @@ private fun ContactsScreen(
                     errorText = loadState.message,
                     modifier = Modifier.padding(16.dp)
                 )
+
                 LoadState.Loading -> LoadingIndicator(Modifier.align(Alignment.Center))
                 else -> {}
             }

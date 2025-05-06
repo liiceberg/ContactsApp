@@ -3,6 +3,7 @@
 
     <string name="common_error_general_message">We are working hard to fix the problem. Please, try again later.</string>
     <string name="no_contacts_permission_screen">Вы отклонили доступ к контактам. Чтобы продолжить, разрешите доступ в настройках приложения.</string>
+    <string name="no_call_permission_text">Вы отклонили доступ к звонкам. Чтобы продолжить, разрешите доступ в настройках приложения.</string>
     <string name="open_settings_button">Открыть настройки</string>
     <string name="permission_needed">Необходимо разрешение</string>
     <string name="app_needs_contacts_permission_text">Приложению неоходимо разрешение на чтение контактов для их отображения</string>
