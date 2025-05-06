@@ -2,7 +2,6 @@ package ru.liiceberg.data.repository
 
 import android.content.ContentResolver
 import android.provider.ContactsContract
-import android.util.Log
 import ru.liiceberg.data.model.Contact
 import ru.liiceberg.domain.repository.ContactsRepository
 import javax.inject.Inject
@@ -65,8 +64,6 @@ class ContactsRepositoryImpl @Inject constructor(
                 }
             }
         }
-
-        Log.d("REP", contacts.toString())
 
         return contacts
     }

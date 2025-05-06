@@ -1,5 +1,6 @@
 package ru.liiceberg.presentation.screens.contacts
 
+import android.util.Log
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
@@ -20,18 +21,17 @@ class ContactsViewModel @Inject constructor(
     override fun obtainEvent(event: ContactsEvent) {
         when (event) {
             is ContactsEvent.LoadContacts -> init()
-            is ContactsEvent.ContactClicked -> {
-
-            }
         }
     }
 
     override fun init() {
         viewModelScope.launch {
             runCatching {
+                Log.d("LOAD STATE", "LOAD")
                 viewState = viewState.copy(loadState = LoadState.Loading)
                 getAllContactsUseCase.invoke()
             }.onSuccess { list ->
+                Log.d("LOAD STATE", "SUC")
                 val groupedContacts = mutableMapOf<Char, MutableList<ContactUiModel>>()
                 list.forEach {
                     val letter = it.name.firstOrNull()?.uppercaseChar()
@@ -55,6 +55,7 @@ class ContactsViewModel @Inject constructor(
                 )
 
             }.onFailure { ex ->
+                Log.d("LOAD STATE", "FAIL")
                 val msg = ex.message ?: resourceManager.getString(R.string.common_error_general_message)
                 viewState = viewState.copy(loadState = LoadState.Error(msg))
             }

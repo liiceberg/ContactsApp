@@ -50,32 +50,59 @@ fun ContactsScreen(
     viewModel: ContactsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.viewStates().collectAsStateWithLifecycle()
-
-    var permissionState by remember { mutableStateOf<PermissionResult?>(null) }
     val context = LocalContext.current
-    var launchRequest: (() -> Unit)? by remember { mutableStateOf(null) }
+
+    var contactsPermissionState by remember { mutableStateOf<PermissionResult?>(null) }
+    var launchContactsRequest: (() -> Unit)? by remember { mutableStateOf(null) }
+
+    var callPermissionState by remember { mutableStateOf<PermissionResult?>(null) }
+    var launchCallRequest: (() -> Unit)? by remember { mutableStateOf(null) }
 
     PermissionHandler(
         permission = Manifest.permission.READ_CONTACTS,
-        onPermissionLauncherReady = { launcher -> launchRequest = launcher },
+        onPermissionLauncherReady = { launcher -> launchContactsRequest = launcher },
         onResult = { result ->
-            permissionState = result
+            contactsPermissionState = result
         }
     )
 
-    LaunchedEffect(permissionState) {
-        if (permissionState == PermissionResult.Granted) {
+    PermissionHandler(
+        permission = Manifest.permission.CALL_PHONE,
+        onPermissionLauncherReady = { launcher -> launchCallRequest = launcher },
+        onResult = { result -> callPermissionState = result }
+    )
+
+    LaunchedEffect(contactsPermissionState) {
+        if (contactsPermissionState == PermissionResult.Granted) {
             viewModel.obtainEvent(ContactsEvent.LoadContacts)
         }
     }
 
     Box(Modifier.padding(padding)) {
-        when (permissionState) {
+        when (contactsPermissionState) {
             PermissionResult.Granted -> {
                 ContactsScreen(
                     state = state,
-                    onContactClick = {
-                        context.callContact(it)
+                    onContactClick = { phoneNumber ->
+                        when (callPermissionState) {
+                            PermissionResult.Granted -> {
+                                context.callContact(phoneNumber)
+                            }
+
+                            PermissionResult.RequestNeeded -> {
+                                launchCallRequest?.invoke()
+                            }
+
+                            PermissionResult.ShowRationale -> {
+
+                            }
+
+                            PermissionResult.PermanentlyDenied -> {
+
+                            }
+
+                            else -> {}
+                        }
                     }
                 )
             }
@@ -84,7 +111,7 @@ fun ContactsScreen(
                 BaseAlertDialog(
                     stringResource(R.string.permission_needed),
                     stringResource(R.string.app_needs_contacts_permission_text)) {
-                    launchRequest?.invoke()
+                    launchContactsRequest?.invoke()
                 }
             }
 
@@ -94,7 +121,7 @@ fun ContactsScreen(
 
             PermissionResult.RequestNeeded -> {
                 LaunchedEffect(Unit) {
-                    launchRequest?.invoke()
+                    launchContactsRequest?.invoke()
                 }
             }
 
