@@ -1,9 +1,6 @@
 package ru.liiceberg.presentation.screens.contacts
 
 import android.Manifest
-import android.content.pm.PackageManager
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -34,15 +30,18 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.liiceberg.R
 import ru.liiceberg.presentation.model.LoadState
+import ru.liiceberg.presentation.ui.components.BaseAlertDialog
 import ru.liiceberg.presentation.ui.components.BaseCard
 import ru.liiceberg.presentation.ui.components.CircleAsyncImage
 import ru.liiceberg.presentation.ui.components.ErrorMessage
 import ru.liiceberg.presentation.ui.components.LoadingIndicator
+import ru.liiceberg.presentation.utils.PermissionHandler
+import ru.liiceberg.presentation.utils.PermissionResult
+import ru.liiceberg.utils.callContact
 import ru.liiceberg.utils.openAppSettings
 
 @Composable
@@ -52,44 +51,54 @@ fun ContactsScreen(
 ) {
     val state by viewModel.viewStates().collectAsStateWithLifecycle()
 
+    var permissionState by remember { mutableStateOf<PermissionResult?>(null) }
     val context = LocalContext.current
-    var hasPermission by remember {
-        mutableStateOf(
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.READ_CONTACTS
-            ) == PackageManager.PERMISSION_GRANTED
-        )
-    }
+    var launchRequest: (() -> Unit)? by remember { mutableStateOf(null) }
 
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        hasPermission = isGranted
-        if (isGranted) {
-            viewModel.obtainEvent(ContactsEvent.LoadContacts)
+    PermissionHandler(
+        permission = Manifest.permission.READ_CONTACTS,
+        onPermissionLauncherReady = { launcher -> launchRequest = launcher },
+        onResult = { result ->
+            permissionState = result
         }
-    }
+    )
 
-    LaunchedEffect(Unit) {
-        if (hasPermission.not()) {
-            permissionLauncher.launch(Manifest.permission.READ_CONTACTS)
-        } else {
+    LaunchedEffect(permissionState) {
+        if (permissionState == PermissionResult.Granted) {
             viewModel.obtainEvent(ContactsEvent.LoadContacts)
         }
     }
 
     Box(Modifier.padding(padding)) {
-        when {
-            hasPermission -> {
+        when (permissionState) {
+            PermissionResult.Granted -> {
                 ContactsScreen(
                     state = state,
-                    onContactClick = { viewModel.obtainEvent(ContactsEvent.ContactClicked(it)) }
+                    onContactClick = {
+                        context.callContact(it)
+                    }
                 )
             }
-            else -> {
+
+            PermissionResult.ShowRationale -> {
+                BaseAlertDialog(
+                    stringResource(R.string.permission_needed),
+                    stringResource(R.string.app_needs_contacts_permission_text)) {
+                    launchRequest?.invoke()
+                }
+            }
+
+            PermissionResult.PermanentlyDenied -> {
                 ScreenWithoutPermission { context.openAppSettings() }
             }
+
+            PermissionResult.RequestNeeded -> {
+                LaunchedEffect(Unit) {
+                    launchRequest?.invoke()
+                }
+            }
+
+            else -> {}
         }
     }
 
@@ -98,7 +107,7 @@ fun ContactsScreen(
 @Composable
 private fun ContactsScreen(
     state: ContactsState,
-    onContactClick: (Long) -> Unit,
+    onContactClick: (String) -> Unit,
 ) {
     Box(Modifier.fillMaxSize()) {
         with(state) {
@@ -119,7 +128,7 @@ private fun ContactsScreen(
                                 name,
                                 mobileNumber,
                                 imageUrl,
-                                onClick = { onContactClick(id) },
+                                onClick = { onContactClick(mobileNumber) },
                                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                             )
                         }
@@ -136,7 +145,6 @@ private fun ContactsScreen(
                     errorText = loadState.message,
                     modifier = Modifier.padding(16.dp)
                 )
-
                 LoadState.Loading -> LoadingIndicator(Modifier.align(Alignment.Center))
                 else -> {}
             }
@@ -197,20 +205,6 @@ private fun ContactItem(
             modifier = Modifier.height(48.dp),
         )
     }
-}
-
-@Composable
-private fun ShowRationaleDialog(onRequestPermission: () -> Unit, onCancel: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = { onCancel() },
-        title = { Text(stringResource(R.string.permission_needed)) },
-        text = { Text(stringResource(R.string.app_needs_contacts_permission_text)) },
-        confirmButton = {
-            Button(onClick = onRequestPermission) {
-                Text(stringResource(android.R.string.ok))
-            }
-        }
-    )
 }
 
 @Preview(showBackground = true)
